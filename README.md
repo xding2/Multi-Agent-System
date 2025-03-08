@@ -1,5 +1,642 @@
+# Multi-Agent-System | 多智能体系统
+
+<div align="right">
+  <a href="#english" id="en-toggle">English</a> | <a href="#chinese" id="zh-toggle">中文</a>
+</div>
+
+<div id="english">
+
 # Multi-Agent-System
 Multi-Agent System: A modular framework for coordinating multiple AI agents to execute tasks and peer review work outputs. The system leverages large language models from different providers, improving task completion quality and reliability through parallel processing and review mechanisms.
+
+## System Architecture
+
+```mermaid
+graph TD
+    A[main.py<br>Entry Point] --> B[system.py<br>Multi-Agent System Class]
+    B --> C[agents/base.py<br>Agent Base Class]
+    B --> D[tasks/coordinator.py<br>Task Coordinator]
+    B --> E[tasks/presets.py<br>Preset Tasks]
+
+    C --> F[agents/providers<br>Agent Implementations]
+    F --> G[openai_agent.py]
+    F --> H[deepseek_agent.py]
+    F --> I[google_agent.py]
+    F --> J[anthropic_agent.py<br>Commented]
+
+    D --> K[utils/output.py<br>Output Formatting]
+    D --> L[utils/time.py<br>Time Utilities]
+
+    B --> M[config.py<br>Configuration Management]
+```
+
+## Core Module Details
+
+### 1. System Configuration (config.py)
+
+**Function**: Manages the global configuration of the system, including API keys, endpoint URLs, and default model settings.
+
+**Important Parameters**:
+
+- `OPENAI_API_KEY`: OpenAI API key
+- `DEEPSEEK_API_KEY`: DeepSeek API key
+- `GOOGLE_API_KEY`: Google Gemini API key
+- `OPENAI_BASE_URL`: OpenAI API endpoint
+- Default Model Settings: Default model names for each provider
+
+**Usage**:
+
+```python
+from config import OPENAI_API_KEY, DEFAULT_OPENAI_MODEL
+```
+
+### 2. Agent Base Class (agents/base.py)
+
+**Function**: Defines the common interface and basic functionality for all AI agents.
+
+**Main Components**:
+
+- `Agent` abstract base class: Defines methods that all agents must implement
+- `_prepare_prompt` method: Prepares prompts in a uniform format for models
+- Abstract `process` method: Must be implemented by subclasses to process tasks
+
+**Example**:
+
+```python
+class Agent(ABC):
+    def __init__(self, name: str, model: str, provider: str):
+        self.name = name
+        self.model = model
+        self.provider = provider
+
+    @abstractmethod
+    async def process(self, input_data: Any, task_instructions: str) -> Dict[str, Any]:
+        pass
+```
+
+### 3. Provider-Specific Agent Implementations
+
+### 3.1 OpenAI Agent (agents/providers/openai_agent.py)
+
+**Function**: Agent implementation using the OpenAI API.
+
+**Features**:
+
+- Uses the latest OpenAI client library
+- Supports different OpenAI models
+- Automatic JSON response parsing
+- Complete error handling
+
+### 3.2 DeepSeek Agent (agents/providers/deepseek_agent.py)
+
+**Function**: Agent implementation using the DeepSeek API (via OpenAI-compatible interface).
+
+**Features**:
+
+- Leverages OpenAI-compatible API interface
+- Supports DeepSeek models
+- Automatic JSON parsing and error handling
+
+### 3.3 Google Gemini Agent (agents/providers/google_agent.py)
+
+**Function**: Agent implementation using the Google Gemini API.
+
+**Features**:
+
+- Uses Google's generative AI client library
+- Supports Gemini model series
+- Handles different response formats automatically
+
+### 3.4 Anthropic Agent (agents/providers/anthropic_agent.py)
+
+**Function**: Agent implementation using the Anthropic Claude API (currently commented out, prepared for future extension).
+
+### 4. Task Coordinator (tasks/coordinator.py)
+
+**Function**: Coordinates multiple agents for parallel task execution and review.
+
+**Main Process**:
+
+1. Parallel distribution of tasks to all agents
+2. Collection of all agent processing results
+3. Preparation of review data
+4. Parallel distribution of review tasks to reviewer agents
+5. Integration of all results
+
+**Usage Example**:
+
+```python
+coordinator = TaskCoordinator(agents, reviewer_agents)
+results = await coordinator.execute_task(input_data, task_instructions, review_instructions)
+```
+
+### 5. Preset Tasks (tasks/presets.py)
+
+**Function**: Defines instructions and review standards for common tasks.
+
+**Included Preset Tasks**:
+
+- `speech_act_annotation`: Speech act annotation task
+- `sentiment_analysis`: Sentiment analysis task
+- `text_correction`: Text proofreading and correction task
+- `code_review`: Code review task
+
+**Each Preset Task Includes**:
+
+- Detailed task instructions
+- Review instructions
+- Expected output JSON format
+
+### 6. Multi-Agent System (system.py)
+
+**Function**: Core class of the system, manages agent registration and task execution.
+
+**Main Methods**:
+
+- `add_agent`: Add a new agent
+- `remove_agent`: Remove an agent
+- `list_agents`: List all registered agents
+- `execute_task`: Execute a custom task
+- `execute_preset_task`: Execute a preset task
+
+**Internal Components**:
+
+- Agent registry
+- Task coordinator instance
+- Preset task collection
+
+### 7. Utility Classes
+
+### 7.1 Output Utilities (utils/output.py)
+
+**Function**: Save system results in different formats.
+
+**Supported Formats**:
+
+- JSON: Structured data, suitable for program processing
+- TXT: Human-readable text reports
+- HTML: Interactive visual reports with styles and layout
+
+**Methods**:
+
+- `save_agent_results`: Save as JSON or TXT
+- `create_html_report`: Create HTML visual report
+
+### 7.2 Time Utilities (utils/time.py)
+
+**Function**: Provide consistent timestamp formats.
+
+**Methods**:
+
+- `get_current_time`: Get current time in standard format
+
+### 8. Main Program Entry (main.py)
+
+**Function**: Entry point of the program, provides command-line interface.
+
+**Main Components**:
+
+- Command-line argument parsing
+- Example task execution flow
+- Preset task list display
+
+**Command-line Options**:
+
+- `-demo`: Run speech act annotation demo
+- `-list-presets`: List all available preset tasks
+
+## Data Flow Diagram
+
+The following is the complete data flow for system processing of a task:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Main as main.py
+    participant MAS as MultiAgentSystem
+    participant TC as TaskCoordinator
+    participant Agents as Task Agents
+    participant Reviewers as Reviewer Agents
+    participant Utils as Output Utils
+
+    User->>Main: Start program
+    Main->>MAS: Create system instance
+    Main->>MAS: Add task agents
+    Main->>MAS: Add reviewer agents
+    Main->>MAS: Execute preset task
+
+    MAS->>TC: Forward task
+
+    par Parallel task execution
+        TC->>Agents: Agent 1 process task
+        TC->>Agents: Agent 2 process task
+        TC->>Agents: Agent 3 process task
+    end
+
+    Agents-->>TC: Return processing results
+
+    TC->>TC: Prepare review data
+
+    par Parallel review execution
+        TC->>Reviewers: Reviewer 1 review
+        TC->>Reviewers: Reviewer 2 review
+    end
+
+    Reviewers-->>TC: Return review results
+    TC-->>MAS: Return complete results
+    MAS-->>Main: Return complete results
+
+    Main->>Utils: Save JSON results
+    Main->>Utils: Save TXT results
+    Main->>Utils: Create HTML report
+
+    Utils-->>User: Display result file paths
+```
+
+## File Structure Details
+
+```
+multi-agent-system/
+├── __init__.py                  # Root package initialization file
+├── agents/                      # Agent-related modules
+│   ├── __init__.py              # Agent package initialization file
+│   ├── base.py                  # Agent abstract base class
+│   └── providers/               # Provider-specific agent implementations
+│       ├── __init__.py          # Provider package initialization file
+│       ├── openai_agent.py      # OpenAI agent implementation
+│       ├── deepseek_agent.py    # DeepSeek agent implementation
+│       ├── google_agent.py      # Google Gemini agent implementation
+│       └── anthropic_agent.py   # Anthropic agent implementation (commented)
+├── tasks/                       # Task-related modules
+│   ├── __init__.py              # Task package initialization file
+│   ├── coordinator.py           # Task coordinator
+│   └── presets.py               # Preset task definitions
+├── utils/                       # Utility functions
+│   ├── __init__.py              # Utility package initialization file
+│   ├── output.py                # Output formatting utilities
+│   └── time.py                  # Time utility functions
+├── agent_results/               # Results saving directory (created at runtime)
+├── config.py                    # Configuration management
+├── system.py                    # Multi-agent system main class
+├── main.py                      # Program entry point
+├── requirements.txt             # Dependency list
+├── .env                         # Environment variables (create yourself)
+└── .env.example                 # Environment variables example
+```
+
+## Installation and Configuration
+
+### Environment Requirements
+
+- Python 3.9 or higher
+- Valid API keys (OpenAI, DeepSeek, Google Gemini)
+
+### Installation Steps
+
+1. Clone the repository
+
+```bash
+git clone <https://github.com/yourusername/multi-agent-system.git>
+cd multi-agent-system
+```
+
+2. Create and activate virtual environment
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment (Windows)
+venv\Scripts\activate
+
+# Activate virtual environment (Unix/MacOS)
+source venv/bin/activate
+```
+
+3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Configure API keys
+
+```bash
+# Copy environment variables example file
+cp .env.example .env
+
+# Edit .env file, add your API keys
+# Use your favorite text editor
+nano .env  # or vim .env, or other editor
+```
+
+## Usage
+
+### Basic Usage
+
+Run the demo task:
+
+```bash
+python main.py
+```
+
+View available preset tasks:
+
+```bash
+python main.py --list-presets
+```
+
+Explicitly run demo:
+
+```bash
+python main.py --demo
+```
+
+### Using in Code
+
+```python
+import asyncio
+from system import MultiAgentSystem
+
+# Create system instance
+system = MultiAgentSystem()
+
+# Add agents
+system.add_agent("GPT Analyzer", "openai", "gpt-4o-mini")
+system.add_agent("DeepSeek Analyzer", "deepseek", "deepseek-v3")
+system.add_agent("Reviewer", "google", "gemini-2.0-flash-lite", is_reviewer=True)
+
+# Prepare input data
+input_data = [{"id": 1, "text": "Example text"}]
+
+# Execute preset task
+async def run_task():
+    results = await system.execute_preset_task("sentiment_analysis", input_data)
+    print(results)
+
+# Run async task
+asyncio.run(run_task())
+```
+
+## Customization and Extension
+
+### Adding New Agent Providers
+
+1. Create a new file in the `agents/providers/` directory (e.g., `new_provider_agent.py`)
+2. Implement a new agent class that inherits from the `Agent` base class
+3. Add the new provider to the `available_agent_types` dictionary in `system.py`
+
+Example:
+
+```python
+# agents/providers/new_provider_agent.py
+from agents.base import Agent
+
+class NewProviderAgent(Agent):
+    def __init__(self, name, model="default-model"):
+        super().__init__(name, model, "NewProvider")
+        # Initialize API client
+
+    async def process(self, input_data, task_instructions):
+        # Implement processing logic
+        pass
+
+# Then in system.py, add:
+self.available_agent_types = {
+    # Existing providers...
+    "new_provider": NewProviderAgent
+}
+```
+
+### Creating New Preset Tasks
+
+1. Add a new static method in `tasks/presets.py`
+2. Define task instructions and review instructions
+3. Update the `get_all_presets` method to include the new task
+
+Example:
+
+```python
+@staticmethod
+def get_new_task() -> Tuple[str, str]:
+    """New preset task"""
+    task_instructions = """
+    Task: Describe task content...
+    """
+
+    review_instructions = """
+    Task: Review instructions...
+    """
+
+    return task_instructions, review_instructions
+
+# Update all presets dictionary
+@staticmethod
+def get_all_presets() -> Dict[str, Tuple[str, str]]:
+    return {
+        # Existing presets...
+        "new_task": TaskPresets.get_new_task(),
+    }
+```
+
+### Customizing Output Formats
+
+By modifying the methods in `utils/output.py`, you can customize output formats or add new output formats.
+
+## Result Examples
+
+After running the speech act annotation task, the system will generate the following output files:
+
+### JSON Format (agent_results_20250308_123456.json)
+
+```json
+{
+  "timestamp": "20250308_123456",
+  "task_details": {
+    "input_data": [
+      {"message_id": "1", "text": "Please help me open the window."},
+      {"message_id": "2", "text": "It's raining outside."},
+      ...
+    ],
+    "instructions": "任务: 识别并标注以下对话中的语音行为类型..."
+  },
+  "agent_analysis": [
+    {
+      "agent_name": "GPT-4o分析器",
+      "model": "gpt-4o-mini",
+      "provider": "OpenAI",
+      "status": "success",
+      "analysis_results": {
+        "annotations": [
+          {
+            "message_id": "1",
+            "text": "请帮我打开窗户。",
+            "speech_act": "指令",
+            "explanation": "说话者在要求听者执行打开窗户的动作。"
+          },
+          ...
+        ]
+      }
+    },
+    ...
+  ],
+  "reviewer_assessment": [
+    ...
+  ]
+}
+```
+
+### HTML报告预览
+
+HTML报告提供了一个可视化界面，包括:
+
+- 任务详情部分
+- 智能体分析结果(带有提供商标识)
+- 评审员评估结果
+- 可折叠的JSON数据视图
+- 彩色标识不同状态和提供商
+
+## 技术细节与考量
+
+### 异步处理
+
+系统使用Python的`asyncio`库实现并行处理，这允许:
+
+- 多个智能体同时处理任务
+- 多个评审员同时评审结果
+- 无需等待单个API调用完成
+
+### 错误处理
+
+每个智能体实现都包含完整的错误处理，确保:
+
+- API调用失败不会导致整个系统崩溃
+- 错误信息被正确捕获并包含在结果中
+- 部分失败不会阻止系统生成有用的输出
+
+### JSON解析
+
+智能体响应处理包括:
+
+- 自动提取大语言模型响应中的JSON部分
+- 处理不同的JSON格式和位置
+- 当JSON解析失败时提供原始响应作为备选
+
+## 贡献与问题反馈
+
+欢迎提交问题报告、功能请求或代码贡献。请通过GitHub的Issue系统提交问题或建议。
+
+## 许可证
+
+[指定您的许可证类型]
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initial setup - show English by default
+  document.getElementById('english').style.display = 'block';
+  document.getElementById('chinese').style.display = 'none';
+  
+  // English toggle button
+  document.getElementById('en-toggle').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('english').style.display = 'block';
+    document.getElementById('chinese').style.display = 'none';
+    
+    // Update toggle button styles
+    document.getElementById('en-toggle').style.fontWeight = 'bold';
+    document.getElementById('zh-toggle').style.fontWeight = 'normal';
+  });
+  
+  // Chinese toggle button
+  document.getElementById('zh-toggle').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('english').style.display = 'none';
+    document.getElementById('chinese').style.display = 'block';
+    
+    // Update toggle button styles
+    document.getElementById('en-toggle').style.fontWeight = 'normal';
+    document.getElementById('zh-toggle').style.fontWeight = 'bold';
+  });
+});
+</script>
+
+    "instructions": "Task: Identify and annotate the speech act types in the following dialogue..."
+  },
+  "agent_analysis": [
+    {
+      "agent_name": "GPT-4o Analyzer",
+      "model": "gpt-4o-mini",
+      "provider": "OpenAI",
+      "status": "success",
+      "analysis_results": {
+        "annotations": [
+          {
+            "message_id": "1",
+            "text": "Please help me open the window.",
+            "speech_act": "directive",
+            "explanation": "The speaker is requesting the listener to perform the action of opening the window."
+          },
+          ...
+        ]
+      }
+    },
+    ...
+  ],
+  "reviewer_assessment": [
+    ...
+  ]
+}
+```
+
+### HTML Report Preview
+
+The HTML report provides a visual interface, including:
+
+- Task details section
+- Agent analysis results (with provider identification)
+- Reviewer assessment results
+- Collapsible JSON data view
+- Color coding for different statuses and providers
+
+## Technical Details and Considerations
+
+### Asynchronous Processing
+
+The system uses Python's `asyncio` library to implement parallel processing, which allows:
+
+- Multiple agents to process tasks simultaneously
+- Multiple reviewers to review results simultaneously
+- No need to wait for single API calls to complete
+
+### Error Handling
+
+Each agent implementation includes complete error handling, ensuring:
+
+- API call failures don't cause the entire system to crash
+- Error information is properly captured and included in the results
+- Partial failures don't prevent the system from generating useful output
+
+### JSON Parsing
+
+Agent response processing includes:
+
+- Automatic extraction of JSON parts from large language model responses
+- Handling different JSON formats and positions
+- Providing the original response as an alternative when JSON parsing fails
+
+## Contributions and Feedback
+
+Feel free to submit issue reports, feature requests, or code contributions. Please submit issues or suggestions through GitHub's Issue system.
+
+## License
+
+[Specify your license type]
+
+</div>
+
+<div id="chinese" style="display:none">
 
 # 多智能体系统 (Multi-Agent System)
 
@@ -24,7 +661,6 @@ graph TD
     D --> L[utils/time.py<br>时间工具]
 
     B --> M[config.py<br>配置管理]
-
 ```
 
 ## 核心模块详解
@@ -45,7 +681,6 @@ graph TD
 
 ```python
 from config import OPENAI_API_KEY, DEFAULT_OPENAI_MODEL
-
 ```
 
 ### 2. 智能体基类 (agents/base.py)
@@ -70,7 +705,6 @@ class Agent(ABC):
     @abstractmethod
     async def process(self, input_data: Any, task_instructions: str) -> Dict[str, Any]:
         pass
-
 ```
 
 ### 3. 特定提供商智能体实现
@@ -127,7 +761,6 @@ class Agent(ABC):
 ```python
 coordinator = TaskCoordinator(agents, reviewer_agents)
 results = await coordinator.execute_task(input_data, task_instructions, review_instructions)
-
 ```
 
 ### 5. 预设任务 (tasks/presets.py)
@@ -251,7 +884,6 @@ sequenceDiagram
     Main->>Utils: 创建HTML报告
 
     Utils-->>User: 显示结果文件路径
-
 ```
 
 ## 文件结构详解
@@ -283,7 +915,6 @@ multi-agent-system/
 ├── requirements.txt             # 依赖项列表
 ├── .env                         # 环境变量(需自行创建)
 └── .env.example                 # 环境变量示例
-
 ```
 
 ## 安装与配置
@@ -300,31 +931,28 @@ multi-agent-system/
 ```bash
 git clone <https://github.com/yourusername/multi-agent-system.git>
 cd multi-agent-system
-
 ```
 
-1. 创建并激活虚拟环境
+2. 创建并激活虚拟环境
 
 ```bash
 # 创建虚拟环境
 python -m venv venv
 
 # 激活虚拟环境(Windows)
-venv\\Scripts\\activate
+venv\Scripts\activate
 
 # 激活虚拟环境(Unix/MacOS)
 source venv/bin/activate
-
 ```
 
-1. 安装依赖项
+3. 安装依赖项
 
 ```bash
 pip install -r requirements.txt
-
 ```
 
-1. 配置API密钥
+4. 配置API密钥
 
 ```bash
 # 复制环境变量示例文件
@@ -333,7 +961,6 @@ cp .env.example .env
 # 编辑.env文件，添加你的API密钥
 # 使用你喜欢的文本编辑器
 nano .env  # 或者 vim .env, 或其他编辑器
-
 ```
 
 ## 使用方法
@@ -344,21 +971,18 @@ nano .env  # 或者 vim .env, 或其他编辑器
 
 ```bash
 python main.py
-
 ```
 
 查看可用的预设任务:
 
 ```bash
 python main.py --list-presets
-
 ```
 
 明确运行演示:
 
 ```bash
 python main.py --demo
-
 ```
 
 ### 在代码中使用
@@ -385,7 +1009,6 @@ async def run_task():
 
 # 运行异步任务
 asyncio.run(run_task())
-
 ```
 
 ## 自定义和扩展
@@ -416,7 +1039,6 @@ self.available_agent_types = {
     # 现有提供商...
     "new_provider": NewProviderAgent
 }
-
 ```
 
 ### 创建新的预设任务
@@ -448,7 +1070,6 @@ def get_all_presets() -> Dict[str, Tuple[str, str]]:
         # 现有预设...
         "new_task": TaskPresets.get_new_task(),
     }
-
 ```
 
 ### 自定义输出格式
@@ -470,75 +1091,3 @@ def get_all_presets() -> Dict[str, Tuple[str, str]]:
       {"message_id": "2", "text": "外面正在下雨。"},
       ...
     ],
-    "instructions": "任务: 识别并标注以下对话中的语音行为类型..."
-  },
-  "agent_analysis": [
-    {
-      "agent_name": "GPT-4o分析器",
-      "model": "gpt-4o-mini",
-      "provider": "OpenAI",
-      "status": "success",
-      "analysis_results": {
-        "annotations": [
-          {
-            "message_id": "1",
-            "text": "请帮我打开窗户。",
-            "speech_act": "指令",
-            "explanation": "说话者在要求听者执行打开窗户的动作。"
-          },
-          ...
-        ]
-      }
-    },
-    ...
-  ],
-  "reviewer_assessment": [
-    ...
-  ]
-}
-
-```
-
-### HTML报告预览
-
-HTML报告提供了一个可视化界面，包括:
-
-- 任务详情部分
-- 智能体分析结果(带有提供商标识)
-- 评审员评估结果
-- 可折叠的JSON数据视图
-- 彩色标识不同状态和提供商
-
-## 技术细节与考量
-
-### 异步处理
-
-系统使用Python的`asyncio`库实现并行处理，这允许:
-
-- 多个智能体同时处理任务
-- 多个评审员同时评审结果
-- 无需等待单个API调用完成
-
-### 错误处理
-
-每个智能体实现都包含完整的错误处理，确保:
-
-- API调用失败不会导致整个系统崩溃
-- 错误信息被正确捕获并包含在结果中
-- 部分失败不会阻止系统生成有用的输出
-
-### JSON解析
-
-智能体响应处理包括:
-
-- 自动提取大语言模型响应中的JSON部分
-- 处理不同的JSON格式和位置
-- 当JSON解析失败时提供原始响应作为备选
-
-## 贡献与问题反馈
-
-欢迎提交问题报告、功能请求或代码贡献。请通过GitHub的Issue系统提交问题或建议。
-
-## 许可证
-
-[指定您的许可证类型]
